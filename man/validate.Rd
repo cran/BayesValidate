@@ -41,8 +41,17 @@ validate(generate.param, generate.param.inputs = NULL, generate.data,
 	Must have length equal to the number of batches.  Can consist of text (e.g., 
 	params.batch=c("alpha","beta")) or an expression (e.g., 
 	params.batch=expression(alpha,beta)).  Not used if n.batch not provided. }
+  \item{parallel.rep}{logical indicating whether the replications should be executed 
+  in parallel using the "foreach() \%dopar\% {}" construct. Defaults to FALSE. The
+  user should create a parallel cluster before calling validate and destroy the 
+  cluster after validate has finished.}
   \item{print.reps}{ Indcator of whether or not to print the replication number, 
 	default is FALSE }
+	\item{return.all}{ Indicator whether or not to return a list with all variables; 
+	can be used for debugging or for further analysis, such as plotting a histogram
+	of the posterior quantiles for a given parameters.
+  Default is FALSE, meaning that only a list of p.vals, adj.min.p and where
+  appropriate, p.batch, will be returned. }
 }
 \details{
 \code{Validate} tests whether
@@ -195,5 +204,18 @@ tst.2 <- validate(generate.param = generate.param, generate.param.inputs =
 	analyze.data.error2, analyze.data.inputs = analyze.data.inputs, 
 	n.rep = 20, params.batch = expression(sigma^2,mu), n.batch = c(1,1))
 
+## executing the replications in parallel (uncomment the commented R-code below)
+## set up a parallel cluster on the local computer for parallel MCMC:
+# cluster <- parallel::makeCluster(parallel::detectCores(logical = TRUE))
+# doParallel::registerDoParallel(cluster)
+# tst.2 <- validate(generate.param = generate.param, generate.param.inputs = 
+#	  generate.param.inputs, generate.data = generate.data, 
+#	  generate.data.inputs = generate.data.inputs, analyze.data = 
+#	  analyze.data.error2, analyze.data.inputs = analyze.data.inputs, 
+#	  n.rep = 20, params.batch = expression(sigma^2,mu), n.batch = c(1,1),
+#   parallel.rep = TRUE
+# )
+## Don't forget to destroy the parallel cluster to avoid leaving zombie worker-processes.
+# parallel::stopCluster(cluster)
 }
 \keyword{debugging}
