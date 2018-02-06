@@ -1,7 +1,7 @@
 validate <- function ( generate.param, generate.param.inputs=NULL, 
 	generate.data, generate.data.inputs=NULL, analyze.data, 
 	analyze.data.inputs=NULL, n.rep=20,n.batch=NULL,params.batch=NULL,parallel.rep=FALSE, 
-	print.reps=FALSE, return.all = FALSE) {
+	print.reps=FALSE, return.all = FALSE, add.to=NULL) {
 
 #----------------------------------------------------------------------------
 #        Inputs
@@ -61,6 +61,11 @@ validate <- function ( generate.param, generate.param.inputs=NULL,
 # return.all            : indicator whether or not to return a list with all variables,
 #       default is FALSE, meaning that only a list of p.vals, adj.min.p and where
 #       appropriate, p.batch is returned. 
+# add.to                : a list returned by a previous call to validate with 
+#       return.all set to TRUE. This allows to add new replications to a previous
+#       validation test and calculate the test statistics on the fly. The previous
+#       call should have been performed with the same values for the other arguments,
+#       except for n.rep, which can be different. Default is NULL.
 #
 #-----------------------------------------------------------------------------
 #
@@ -116,19 +121,32 @@ if(!is.null(n.batch)) {
 	for(i in 2:num.batches) plot.batch<-c(plot.batch,rep(i,n.batch[i]))
 	}
 
+if(is.list(add.to)) {
+  # add replications to a previous result
+  prev.n.rep <- add.to$n.rep
+  quantile.theta.prev <- add.to$quantile.theta
+}	else {
+  prev.n.rep <- 0
+  quantile.theta.prev <- NULL
+}
+
 ##initialize quantiles
 ##if parameters are in batches, make extra columns in quantile matrix for 
 ##batch means
 if(!is.null(n.batch)) 
-	quantile.theta <- matrix(0,nrow=n.rep,ncol=(n.param+num.batches)) else
-	quantile.theta <- matrix(0,nrow=n.rep,ncol=n.param)
+	quantile.theta <- rbind(quantile.theta.prev, 
+	                        matrix(0,nrow=n.rep,ncol=(n.param+num.batches))) else
+	quantile.theta <- rbind(quantile.theta.prev, 
+	                        matrix(0,nrow=n.rep,ncol=n.param))
 
+	                        
 #---------------------------------------------------------------------------
 #            Validation Loop
 
+
 `%do_op%` <- if(parallel.rep) `%dopar%` else `%do%`
 
-list.quantile.theta <- foreach(reps=1:n.rep, .packages = (.packages())) %do_op% {
+list.quantile.theta <- foreach(reps=(prev.n.rep+(1:n.rep)), .packages = (.packages())) %do_op% {
 
   if(parallel.rep) {
     ## initiate the random generator with a unique seed for each replication.
@@ -187,9 +205,10 @@ list.quantile.theta <- foreach(reps=1:n.rep, .packages = (.packages())) %do_op% 
 
 ## copy the list of quantile.theta's into the matrix (done in this separate loop 
 ## to simplify returning results from the replications that can be executed in parallel.)
-for(reps in 1:n.rep) {
-  quantile.theta[reps, ] <- list.quantile.theta[[reps]]  
+for(reps in (prev.n.rep+(1:n.rep))) {
+  quantile.theta[reps, ] <- list.quantile.theta[[reps-prev.n.rep]]  
 }
+n.rep <- prev.n.rep + n.rep
 rm(list.quantile.theta)
 
 

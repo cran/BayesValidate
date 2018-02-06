@@ -52,6 +52,11 @@ validate(generate.param, generate.param.inputs = NULL, generate.data,
 	of the posterior quantiles for a given parameters.
   Default is FALSE, meaning that only a list of p.vals, adj.min.p and where
   appropriate, p.batch, will be returned. }
+  \item{add.to}{a list returned by a previous call to validate with 
+   return.all set to TRUE. This allows to add new replications to a previous
+   validation test and calculate the test statistics on the fly. The previous
+   call should have been performed with the same values for the other arguments,
+   except for n.rep, which can be different. Default is NULL.}
 }
 \details{
 \code{Validate} tests whether
