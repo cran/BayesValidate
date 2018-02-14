@@ -30,7 +30,9 @@ validate(generate.param, generate.param.inputs = NULL, generate.data,
 	! This is the software being tested !! }
   \item{analyze.data.inputs}{ Inputs to the function analyze.data (in addition to 
 	data.rep and theta.true) }
-  \item{n.rep}{ Number of replications to be performed, default is 20. }
+  \item{n.rep}{ Number of replications to be performed, default is 20. If set to 0, 
+  the validation execution is skipped and the analysis is performed on the posterior
+  quantiles in add.to.}
   \item{n.batch}{ Lengths of parameter batches.  A parameter batch might consist of, 
 	for example, all person-level means in a hierarchical model or any group of 
 	parameters that is sampled in a loop.  Must sum to n.param (length of parameter

@@ -49,7 +49,9 @@ validate <- function ( generate.param, generate.param.inputs=NULL,
 #			  params.batch=c("alpha","beta")) or an expression 
 #			  (e.g., params.batch=expression(alpha,beta)).  
 #			  Not used if n.batch not provided.
-# n.rep                 : number of replications to be performed, default is 20
+# n.rep                 : number of replications to be performed, default is 20. If set to 0, 
+#       the validation execution is skipped and the analysis is performed on the posterior
+#       quantiles in add.to.
 # parallel.rep          : logical indicating whether the replications should be executed 
 #       in parallel using the "foreach() \%dopar\% {}" construct from the R package 
 #       foreach. Defaults to FALSE. If TRUE, this parameter causes a set.seed(rep_no) to 
@@ -65,7 +67,9 @@ validate <- function ( generate.param, generate.param.inputs=NULL,
 #       return.all set to TRUE. This allows to add new replications to a previous
 #       validation test and calculate the test statistics on the fly. The previous
 #       call should have been performed with the same values for the other arguments,
-#       except for n.rep, which can be different. Default is NULL.
+#       except for n.rep, which can be different. Specifying n.rep = 0 allows to redo 
+#       the analysis (z-values and p-values) on the posterior quantiles found in add.to.
+#       Default setting is NULL.
 #
 #-----------------------------------------------------------------------------
 #
@@ -123,7 +127,7 @@ if(!is.null(n.batch)) {
 
 if(is.list(add.to)) {
   # add replications to a previous result
-  prev.n.rep <- add.to$n.rep
+  prev.n.rep <- nrow(add.to$quantile.theta) #add.to$n.rep
   quantile.theta.prev <- add.to$quantile.theta
 }	else {
   prev.n.rep <- 0
@@ -141,8 +145,8 @@ if(!is.null(n.batch))
 
 	                        
 #---------------------------------------------------------------------------
-#            Validation Loop
-
+#            Validation Loop (specifying n.rep = 0 skips to the analysis part)
+if(n.rep > 0) {
 
 `%do_op%` <- if(parallel.rep) `%dopar%` else `%do%`
 
@@ -208,13 +212,15 @@ list.quantile.theta <- foreach(reps=(prev.n.rep+(1:n.rep)), .packages = (.packag
 for(reps in (prev.n.rep+(1:n.rep))) {
   quantile.theta[reps, ] <- list.quantile.theta[[reps-prev.n.rep]]  
 }
-n.rep <- prev.n.rep + n.rep
 rm(list.quantile.theta)
+}
 
-
+n.rep <- prev.n.rep + n.rep
+	                        
 #-----------------------------------------------------------------------------
 #            Analyze simulation output
 
+if(n.rep > 0) {	                        
 ##calculate z.theta statistics and p-values
 quantile.trans <- (apply(quantile.theta, 2, qnorm))^2
 q.trans <- apply(quantile.trans,2,sum)
@@ -271,5 +277,8 @@ if(return.all) {
           return(list(p.vals = p.vals[1:n.param], p.batch = p.batch, 
                       adj.min.p=adj.min.p))
     }  
+  }
+} else {
+  return(NULL)
 }
 }
