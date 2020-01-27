@@ -8,7 +8,8 @@
 \usage{
 validate(generate.param, generate.param.inputs = NULL, generate.data, 
 	generate.data.inputs = NULL, analyze.data, analyze.data.inputs = NULL, 
-	n.rep = 20, n.batch = NULL, params.batch = NULL, print.reps = FALSE)
+	n.rep = 20, n.batch = NULL, params.batch = NULL,parallel.rep=FALSE, print.reps = FALSE,
+	return.all = FALSE, add.to=NULL, plot.title=NULL)
 }
 \arguments{
   \item{generate.param}{ Function for generating parameters from prior distribution
@@ -59,6 +60,9 @@ validate(generate.param, generate.param.inputs = NULL, generate.data,
    validation test and calculate the test statistics on the fly. The previous
    call should have been performed with the same values for the other arguments,
    except for n.rep, which can be different. Default is NULL.}
+  \item{plot.title}{a character string or an expression used for the title of
+        the absolute-z statistic plot. Default is NULL resulting in the title being
+        set to expression("Absolute "*z[theta]*" Statistics").}
 }
 \details{
 \code{Validate} tests whether

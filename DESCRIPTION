@@ -1,5 +1,5 @@
 Package: BayesValidate
-Version: 0.1
+Version: 0.2
 Date: 2018-01-29
 Title: BayesValidate Package
 Authors@R: c(person("Samantha", "Cook", email = "cook@stat.columbia.edu",

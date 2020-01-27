@@ -1,7 +1,7 @@
 validate <- function ( generate.param, generate.param.inputs=NULL, 
 	generate.data, generate.data.inputs=NULL, analyze.data, 
 	analyze.data.inputs=NULL, n.rep=20,n.batch=NULL,params.batch=NULL,parallel.rep=FALSE, 
-	print.reps=FALSE, return.all = FALSE, add.to=NULL) {
+	print.reps=FALSE, return.all = FALSE, add.to=NULL, plot.title=NULL) {
 
 #----------------------------------------------------------------------------
 #        Inputs
@@ -70,6 +70,9 @@ validate <- function ( generate.param, generate.param.inputs=NULL,
 #       except for n.rep, which can be different. Specifying n.rep = 0 allows to redo 
 #       the analysis (z-values and p-values) on the posterior quantiles found in add.to.
 #       Default setting is NULL.
+# plot.title            : a character string or an expression used for the title of
+#       the absolute-z statistic plot. Default is NULL resulting in the title being
+#       set to expression("Absolute "*z[theta]*" Statistics").
 #
 #-----------------------------------------------------------------------------
 #
@@ -244,9 +247,13 @@ else {
 print(paste("Smallest Bonferonni-adjusted p-value: ", round(adj.min.p, 3)))
 
 ##plot
+plot.title <- if(is.null(plot.title)) 
+  expression("Absolute "*z[theta]*" Statistics") else plot.title
+
 if(is.null(n.batch)){
 	plot(z.stats, rep(1,n.param), xlim=c(0,upper.lim),xlab="",
-		ylab="",main=expression("Absolute "*z[theta]*" Statistics"),
+		ylab="",
+		main=plot.title,
 		axes=F)
 	axis(1,line=.1)} else {
 	##first plot parameters that are NOT batch means
@@ -254,7 +261,7 @@ if(is.null(n.batch)){
 	plot(z.stats[1:n.param][plot.batch%in%rows.one==FALSE],
 		plot.batch[plot.batch%in%rows.one==FALSE],
 		xlim=c(0,upper.lim),ylim=c(1,num.batches),xlab="",
-		ylab="",main=expression("Absolute "*z[theta]*" Statistics"),
+		ylab="",main=plot.title,
 		axes=F,pch=1)
 	##now add batch means
 	points(z.batch,c(1:num.batches),pch=20)
