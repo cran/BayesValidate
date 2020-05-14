@@ -1,7 +1,7 @@
 validate <- function ( generate.param, generate.param.inputs=NULL, 
 	generate.data, generate.data.inputs=NULL, analyze.data, 
-	analyze.data.inputs=NULL, n.rep=20,n.batch=NULL,params.batch=NULL, 
-	print.reps=FALSE) {
+	analyze.data.inputs=NULL, n.rep=20,n.batch=NULL,params.batch=NULL,parallel.rep=FALSE, 
+	print.reps=FALSE, return.all = FALSE, add.to=NULL, plot.title=NULL) {
 
 #----------------------------------------------------------------------------
 #        Inputs
@@ -49,9 +49,30 @@ validate <- function ( generate.param, generate.param.inputs=NULL,
 #			  params.batch=c("alpha","beta")) or an expression 
 #			  (e.g., params.batch=expression(alpha,beta)).  
 #			  Not used if n.batch not provided.
-# n.rep                 : number of replications to be performed, default is 20
+# n.rep                 : number of replications to be performed, default is 20. If set to 0, 
+#       the validation execution is skipped and the analysis is performed on the posterior
+#       quantiles in add.to.
+# parallel.rep          : logical indicating whether the replications should be executed 
+#       in parallel using the "foreach() \%dopar\% {}" construct from the R package 
+#       foreach. Defaults to FALSE. If TRUE, this parameter causes a set.seed(rep_no) to 
+#       be executed at the beginning of each replication. The user has to create and 
+#       register a parallel cluster before 
+#       calling validate() and destroy that cluster after validate() has finished.
 # print.reps            : indcator of whether or not to print the replication 
 #			  number, default is FALSE
+# return.all            : indicator whether or not to return a list with all variables,
+#       default is FALSE, meaning that only a list of p.vals, adj.min.p and where
+#       appropriate, p.batch is returned. 
+# add.to                : a list returned by a previous call to validate with 
+#       return.all set to TRUE. This allows to add new replications to a previous
+#       validation test and calculate the test statistics on the fly. The previous
+#       call should have been performed with the same values for the other arguments,
+#       except for n.rep, which can be different. Specifying n.rep = 0 allows to redo 
+#       the analysis (z-values and p-values) on the posterior quantiles found in add.to.
+#       Default setting is NULL.
+# plot.title            : a character string or an expression used for the title of
+#       the absolute-z statistic plot. Default is NULL resulting in the title being
+#       set to expression("Absolute "*z[theta]*" Statistics").
 #
 #-----------------------------------------------------------------------------
 #
@@ -107,18 +128,38 @@ if(!is.null(n.batch)) {
 	for(i in 2:num.batches) plot.batch<-c(plot.batch,rep(i,n.batch[i]))
 	}
 
+if(is.list(add.to)) {
+  # add replications to a previous result
+  prev.n.rep <- nrow(add.to$quantile.theta) #add.to$n.rep
+  quantile.theta.prev <- add.to$quantile.theta
+}	else {
+  prev.n.rep <- 0
+  quantile.theta.prev <- NULL
+}
+
 ##initialize quantiles
 ##if parameters are in batches, make extra columns in quantile matrix for 
 ##batch means
 if(!is.null(n.batch)) 
-	quantile.theta <- matrix(0,nrow=n.rep,ncol=(n.param+num.batches)) else
-	quantile.theta <- matrix(0,nrow=n.rep,ncol=n.param)
+	quantile.theta <- rbind(quantile.theta.prev, 
+	                        matrix(0,nrow=n.rep,ncol=(n.param+num.batches))) else
+	quantile.theta <- rbind(quantile.theta.prev, 
+	                        matrix(0,nrow=n.rep,ncol=n.param))
 
+	                        
 #---------------------------------------------------------------------------
-#            Validation Loop
+#            Validation Loop (specifying n.rep = 0 skips to the analysis part)
+if(n.rep > 0) {
 
-for(reps in 1:n.rep){
+`%do_op%` <- if(parallel.rep) `%dopar%` else `%do%`
 
+list.quantile.theta <- foreach(reps=(prev.n.rep+(1:n.rep)), .packages = (.packages())) %do_op% {
+
+  if(parallel.rep) {
+    ## initiate the random generator with a unique seed for each replication.
+    set.seed(reps)
+  }
+  
 	##First generate parameters
 	##theta.true is vector of true parameters, with length n.param
 	if(is.null(generate.param.inputs)) theta.true <- generate.param() else 
@@ -162,15 +203,27 @@ for(reps in 1:n.rep){
 
 	##update matrix of posterior quantiles
 	theta.draws <- rbind(theta.true, theta.draws)
-	quantile.theta[reps, ] <- apply( theta.draws, 2, quant )
+	quantile.theta.reps <- apply( theta.draws, 2, quant )
 
-	if(print.reps==TRUE) print(reps)
+	if(print.reps==TRUE & interactive()) print(reps)
+	
+	quantile.theta.reps
 }
 
+## copy the list of quantile.theta's into the matrix (done in this separate loop 
+## to simplify returning results from the replications that can be executed in parallel.)
+for(reps in (prev.n.rep+(1:n.rep))) {
+  quantile.theta[reps, ] <- list.quantile.theta[[reps-prev.n.rep]]  
+}
+rm(list.quantile.theta)
+}
 
+n.rep <- prev.n.rep + n.rep
+	                        
 #-----------------------------------------------------------------------------
 #            Analyze simulation output
 
+if(n.rep > 0) {	                        
 ##calculate z.theta statistics and p-values
 quantile.trans <- (apply(quantile.theta, 2, qnorm))^2
 q.trans <- apply(quantile.trans,2,sum)
@@ -194,9 +247,13 @@ else {
 print(paste("Smallest Bonferonni-adjusted p-value: ", round(adj.min.p, 3)))
 
 ##plot
+plot.title <- if(is.null(plot.title)) 
+  expression("Absolute "*z[theta]*" Statistics") else plot.title
+
 if(is.null(n.batch)){
 	plot(z.stats, rep(1,n.param), xlim=c(0,upper.lim),xlab="",
-		ylab="",main=expression("Absolute "*z[theta]*" Statistics"),
+		ylab="",
+		main=plot.title,
 		axes=F)
 	axis(1,line=.1)} else {
 	##first plot parameters that are NOT batch means
@@ -204,8 +261,8 @@ if(is.null(n.batch)){
 	plot(z.stats[1:n.param][plot.batch%in%rows.one==FALSE],
 		plot.batch[plot.batch%in%rows.one==FALSE],
 		xlim=c(0,upper.lim),ylim=c(1,num.batches),xlab="",
-		ylab="",main=expression("Absolute "*z[theta]*" Statistics"),
-		axes=F,pch=176)
+		ylab="",main=plot.title,
+		axes=F,pch=1)
 	##now add batch means
 	points(z.batch,c(1:num.batches),pch=20)
 	axis(1,line=.1)
@@ -216,16 +273,19 @@ abline(v=0)
 
 #----------------------------------------------------------------------------
 
-##return z statistics and p-value
-if(is.null(n.batch)){
-	return(list(p.vals = p.vals, adj.min.p=adj.min.p))} else {
-	
-	if(length(z.batch)==n.param)
-	return(list(p.batch = p.batch, adj.min.p=adj.min.p)) else 
-	return(list(p.vals = p.vals[1:n.param], p.batch = p.batch, 
-            adj.min.p=adj.min.p))
-	}
-
+if(return.all) {
+  return(mget(ls()))} else {
+  ##return z statistics and p-value
+  if(is.null(n.batch)){
+    return(list(p.vals = p.vals, adj.min.p=adj.min.p))} else {
+      
+      if(length(z.batch)==n.param)
+        return(list(p.batch = p.batch, adj.min.p=adj.min.p)) else 
+          return(list(p.vals = p.vals[1:n.param], p.batch = p.batch, 
+                      adj.min.p=adj.min.p))
+    }  
+  }
+} else {
+  return(NULL)
 }
-
-
+}

@@ -1,8 +1,11 @@
 Package: BayesValidate
-Version: 0.0
-Date: 2005-06-25
+Version: 0.2
+Date: 2018-01-29
 Title: BayesValidate Package
-Author: Samantha Cook <cook@stat.columbia.edu>.
+Authors@R: c(person("Samantha", "Cook", email = "cook@stat.columbia.edu",
+                 role = c("aut", "cre", "cph")),
+             person("Venelin", "Mitov", email = "vmitov@gmail.com",
+                 role = c("ctb")))
 Maintainer: Samantha Cook <cook@stat.columbia.edu>
 Depends: R (>= 2.0.1)
 Description: BayesValidate implements the software validation method
@@ -13,6 +16,7 @@ Description: BayesValidate implements the software validation method
         being fit, and repeatedly generates and analyzes data to check
         that the Bayesian inference program works properly.
 License: GPL (>= 2)
+Imports: foreach
 Packaged: Thu Mar 30 10:48:35 2006; hornik
 Repository: CRAN
 Date/Publication: 2006-03-30 09:22:53

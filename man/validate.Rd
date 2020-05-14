@@ -8,7 +8,8 @@
 \usage{
 validate(generate.param, generate.param.inputs = NULL, generate.data, 
 	generate.data.inputs = NULL, analyze.data, analyze.data.inputs = NULL, 
-	n.rep = 20, n.batch = NULL, params.batch = NULL, print.reps = FALSE)
+	n.rep = 20, n.batch = NULL, params.batch = NULL,parallel.rep=FALSE, print.reps = FALSE,
+	return.all = FALSE, add.to=NULL, plot.title=NULL)
 }
 \arguments{
   \item{generate.param}{ Function for generating parameters from prior distribution
@@ -30,7 +31,9 @@ validate(generate.param, generate.param.inputs = NULL, generate.data,
 	! This is the software being tested !! }
   \item{analyze.data.inputs}{ Inputs to the function analyze.data (in addition to 
 	data.rep and theta.true) }
-  \item{n.rep}{ Number of replications to be performed, default is 20. }
+  \item{n.rep}{ Number of replications to be performed, default is 20. If set to 0, 
+  the validation execution is skipped and the analysis is performed on the posterior
+  quantiles in add.to.}
   \item{n.batch}{ Lengths of parameter batches.  A parameter batch might consist of, 
 	for example, all person-level means in a hierarchical model or any group of 
 	parameters that is sampled in a loop.  Must sum to n.param (length of parameter
@@ -41,8 +44,25 @@ validate(generate.param, generate.param.inputs = NULL, generate.data,
 	Must have length equal to the number of batches.  Can consist of text (e.g., 
 	params.batch=c("alpha","beta")) or an expression (e.g., 
 	params.batch=expression(alpha,beta)).  Not used if n.batch not provided. }
+  \item{parallel.rep}{logical indicating whether the replications should be executed 
+  in parallel using the "foreach() \%dopar\% {}" construct. Defaults to FALSE. The
+  user should create a parallel cluster before calling validate and destroy the 
+  cluster after validate has finished.}
   \item{print.reps}{ Indcator of whether or not to print the replication number, 
 	default is FALSE }
+	\item{return.all}{ Indicator whether or not to return a list with all variables; 
+	can be used for debugging or for further analysis, such as plotting a histogram
+	of the posterior quantiles for a given parameters.
+  Default is FALSE, meaning that only a list of p.vals, adj.min.p and where
+  appropriate, p.batch, will be returned. }
+  \item{add.to}{a list returned by a previous call to validate with 
+   return.all set to TRUE. This allows to add new replications to a previous
+   validation test and calculate the test statistics on the fly. The previous
+   call should have been performed with the same values for the other arguments,
+   except for n.rep, which can be different. Default is NULL.}
+  \item{plot.title}{a character string or an expression used for the title of
+        the absolute-z statistic plot. Default is NULL resulting in the title being
+        set to expression("Absolute "*z[theta]*" Statistics").}
 }
 \details{
 \code{Validate} tests whether
@@ -195,5 +215,18 @@ tst.2 <- validate(generate.param = generate.param, generate.param.inputs =
 	analyze.data.error2, analyze.data.inputs = analyze.data.inputs, 
 	n.rep = 20, params.batch = expression(sigma^2,mu), n.batch = c(1,1))
 
+## executing the replications in parallel (uncomment the commented R-code below)
+## set up a parallel cluster on the local computer for parallel MCMC:
+# cluster <- parallel::makeCluster(parallel::detectCores(logical = TRUE))
+# doParallel::registerDoParallel(cluster)
+# tst.2 <- validate(generate.param = generate.param, generate.param.inputs = 
+#	  generate.param.inputs, generate.data = generate.data, 
+#	  generate.data.inputs = generate.data.inputs, analyze.data = 
+#	  analyze.data.error2, analyze.data.inputs = analyze.data.inputs, 
+#	  n.rep = 20, params.batch = expression(sigma^2,mu), n.batch = c(1,1),
+#   parallel.rep = TRUE
+# )
+## Don't forget to destroy the parallel cluster to avoid leaving zombie worker-processes.
+# parallel::stopCluster(cluster)
 }
 \keyword{debugging}
